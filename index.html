@@ -1,52 +1,109 @@
 <!DOCTYPE html>
 <html lang="fr">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Baron von Humboldt</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f4f4f4;
-            color: #333;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-        }
-
-        .container {
-            width: 80%;
-            max-width: 600px;
-            background-color: #fff;
-            padding: 20px;
-            border-radius: 5px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        }
-
-        h1 {
-            text-align: center;
-        }
-
-        p {
-            line-height: 1.5;
-            margin: 10px 0;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Roadbook Floride 2026 - Carte Itinéraire</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0f4f8; }
+  #header { background: linear-gradient(135deg, #1a5276, #2e86c1); color: white; padding: 20px 30px; text-align: center; }
+  #header h1 { font-size: 28px; margin-bottom: 4px; }
+  #header p { font-size: 14px; opacity: 0.85; }
+  #map { height: 65vh; width: 100%; }
+  #legend { padding: 15px 30px; background: white; border-top: 3px solid #2e86c1; }
+  #legend h3 { color: #1a5276; margin-bottom: 10px; font-size: 16px; }
+  .leg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 8px; }
+  .leg-item { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 6px; background: #f7fafc; font-size: 13px; }
+  .leg-num { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 12px; flex-shrink: 0; }
+  .leg-info strong { color: #1a5276; }
+  .leg-info span { color: #666; font-size: 12px; }
+  .popup-title { font-weight: bold; color: #1a5276; font-size: 14px; margin-bottom: 4px; }
+  .popup-detail { font-size: 12px; color: #444; line-height: 1.5; }
+  .popup-addr { font-size: 11px; color: #888; font-style: italic; }
+</style>
 </head>
-
 <body>
-    <div class="container">
-        <h1>Baron von Humboldt</h1>
-        <p>Alexander von Humboldt, baron de Humboldt, né le 14 septembre 1769 à Berlin et mort le 6 mai 1859 à Berlin, est
-            un naturaliste, géographe et explorateur prussien.</p>
-        <p>Il est célèbre pour avoir notamment exploré et décrit pour la première fois de manière scientifique l'Amérique du Sud,
-            en particulier le fleuve Orénoque, les Andes et la région de l'actuel Mexique.</p>
-        <p>JR</p>
-    </div>
-</body>
+<div id="header">
+  <h1>Roadbook Floride 2026</h1>
+  <p>21 fevrier - 6 mars 2026 | Sandrine, Jérôme, Eliott & Joa | ~2 200 km de road trip</p>
+</div>
+<div id="map"></div>
+<div id="legend">
+  <h3>Etapes du voyage</h3>
+  <div class="leg-grid" id="legGrid"></div>
+</div>
 
+<script>
+const stops = [
+  { name: "Miami Airport", lat: 25.7959, lng: -80.2870, day: "J1 - Sam 21/02", desc: "Arrivee 14h40 - Recup. voiture Alamo 17h00", addr: "Miami International Airport", color: "#e74c3c", night: false },
+  { name: "Fort Lauderdale", lat: 26.1224, lng: -80.1373, day: "Nuit 1 - Sam 21/02", desc: "Nuit a Wilton Manors - Arrivee >= 15h00", addr: "125 NE 21st St, Wilton Manors, FL 33305", color: "#e67e22", night: true, km: "50 km - 40 min" },
+  { name: "Palm Beach", lat: 26.7056, lng: -80.0364, day: "J2 - Dim 22/02", desc: "Remontee cote est - Worth Avenue, Flagler Museum", addr: "Palm Beach, FL", color: "#f1c40f", night: false, km: "75 km - 1h" },
+  { name: "Kissimmee", lat: 28.2920, lng: -81.4076, day: "Nuits 2-4 - Dim au Mar", desc: "Base Orlando - 3 nuits - Arrivee 15h-24h", addr: "3081 Seaview Castle Dr, Kissimmee, FL 34746", color: "#2ecc71", night: true, km: "280 km - 3h" },
+  { name: "Kennedy Space Center", lat: 28.5728, lng: -80.6490, day: "J3 - Lun 23/02", desc: "Visite KSC - Billets reserves", addr: "Kennedy Space Center Visitor Complex, FL", color: "#1abc9c", night: false, km: "100 km - 1h10" },
+  { name: "Universal Studios Epic", lat: 28.4722, lng: -81.4686, day: "J4 - Mar 24/02", desc: "Parc Universal Epic - Billets reserves", addr: "Universal Orlando Resort, FL", color: "#3498db", night: false, km: "30 km - 30 min" },
+  { name: "Daytona Speedway", lat: 29.1869, lng: -81.0709, day: "J5 - Mer 25/02", desc: "Visite Daytona International Speedway - Billets reserves", addr: "Daytona International Speedway, FL", color: "#9b59b6", night: false, km: "130 km - 1h30" },
+  { name: "Citrus Springs", lat: 28.9942, lng: -82.4714, day: "Nuit 5 - Mer 25/02", desc: "Nuit maison - Arrivee >= 15h - Depart <= 11h", addr: "8927 N Trojan Dr, Citrus Springs, FL 34433", color: "#e74c3c", night: true, km: "200 km - 2h15" },
+  { name: "Crystal River", lat: 28.9023, lng: -82.5926, day: "J6 - Jeu 26/02", desc: "9h30 Plongee avec les lamantins - Reserve", addr: "Crystal River, FL", color: "#e67e22", night: false, km: "30 km - 25 min" },
+  { name: "St. Petersburg - Musee Dali", lat: 27.7660, lng: -82.6312, day: "J6 - Jeu 26/02", desc: "Collection Salvador Dali - Apres-midi", addr: "The Dali Museum, St. Petersburg, FL", color: "#f1c40f", night: false, km: "150 km - 1h45" },
+  { name: "Tampa", lat: 27.9600, lng: -82.4767, day: "Nuit 6 - Jeu 26/02", desc: "Nuit maison - Resto Texas de Brazil - Arrivee 14h-18h", addr: "3310 Lila St, Tampa, FL 33610", color: "#2ecc71", night: true, km: "40 km - 35 min" },
+  { name: "Sanibel Island", lat: 26.4370, lng: -82.0220, day: "J7 - Ven 27/02", desc: "Plages, coquillages, Ding Darling Wildlife Refuge", addr: "Sanibel Island, FL", color: "#1abc9c", night: false, km: "250 km - 2h45" },
+  { name: "Naples", lat: 26.1420, lng: -81.7948, day: "Nuit 7 - Ven 27/02", desc: "Coucher de soleil sur le Golfe - Nuit hotel - Arrivee >= 15h", addr: "6400 Dudley Dr, Naples, FL 34105", color: "#3498db", night: true, km: "65 km - 1h" },
+  { name: "Everglades City - Airboat", lat: 25.8578, lng: -81.3862, day: "J8 - Sam 28/02", desc: "Tour en airboat dans les Everglades - Reserve", addr: "Everglades City, FL", color: "#9b59b6", night: false, km: "60 km - 50 min" },
+  { name: "Islamorada", lat: 24.9243, lng: -80.6278, day: "Nuit 8 - Sam 28/02", desc: "Maison sur l'eau - Arrivee 16h-23h30", addr: "200 Treasure Harbor Dr, Islamorada, FL 33036", color: "#e74c3c", night: true, km: "180 km - 2h30" },
+  { name: "Key West", lat: 24.5551, lng: -81.7800, day: "Nuit 9 - Dim 01/03", desc: "Canoe mangrove - Mallory Square sunset - Arrivee 15h-18h", addr: "622 Fleming St, Key West, FL 33040", color: "#e67e22", night: true, km: "130 km - 2h" },
+  { name: "Maison Hemingway", lat: 24.5467, lng: -81.8008, day: "J10 - Lun 02/03", desc: "Visite Hemingway Home and Museum", addr: "907 Whitehead St, Key West, FL", color: "#f1c40f", night: false, km: "1 km - 5 min" },
+  { name: "Miami (Brickell)", lat: 25.7617, lng: -80.1918, day: "Nuits 10-12 - Lun au Mer", desc: "3 nuits - Outlet - Everglades - Croisiere - Match basket - Arrivee 15h-20h", addr: "Brickell, Miami, FL 33129", color: "#2ecc71", night: true, km: "265 km - 3h45" },
+  { name: "Shark Valley (Everglades)", lat: 25.7559, lng: -80.7654, day: "J11 - Mar 03/03", desc: "Velo dans les Everglades - Tour d'observation", addr: "Shark Valley, Everglades NP, FL", color: "#1abc9c", night: false, km: "60 km - 50 min" },
+  { name: "Miami Airport (retour)", lat: 25.7959, lng: -80.2870, day: "J13 - Jeu 05/03", desc: "Retour voiture 18h30 - Vol BA0208 22h00", addr: "Miami International Airport", color: "#e74c3c", night: false, km: "15 km - 20 min" }
+];
+
+const map = L.map('map').setView([26.8, -81.2], 7);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap contributors'
+}).addTo(map);
+
+const routeCoords = stops.map(s => [s.lat, s.lng]);
+L.polyline(routeCoords, { color: '#2e86c1', weight: 3, opacity: 0.7, dashArray: '8, 8' }).addTo(map);
+
+const legGrid = document.getElementById('legGrid');
+stops.forEach((stop, i) => {
+  const isNight = stop.night;
+  const icon = L.divIcon({
+    className: 'custom-marker',
+    html: '<div style="background:'+stop.color+';color:white;width:'+(isNight?30:24)+'px;height:'+(isNight?30:24)+'px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:'+(isNight?13:11)+'px;font-weight:bold;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3);">'+(i+1)+'</div>',
+    iconSize: [isNight?30:24, isNight?30:24],
+    iconAnchor: [isNight?15:12, isNight?15:12]
+  });
+
+  const marker = L.marker([stop.lat, stop.lng], { icon: icon }).addTo(map);
+  marker.bindPopup(
+    '<div class="popup-title">'+stop.name+'</div>' +
+    '<div class="popup-detail">'+stop.day+'<br>'+stop.desc+'</div>' +
+    (stop.km ? '<div class="popup-detail">&#x1F697; '+stop.km+'</div>' : '') +
+    '<div class="popup-addr">&#x1F4CD; '+stop.addr+'</div>'
+  );
+
+  if (stop.km) {
+    var item = document.createElement('div');
+    item.className = 'leg-item';
+    item.innerHTML =
+      '<div class="leg-num" style="background:'+stop.color+'">'+(i+1)+'</div>' +
+      '<div class="leg-info">' +
+        '<strong>'+stop.name+'</strong> '+(isNight ? '&#x1F319;' : '&#x1F4CD;')+'<br>' +
+        '<span>&#x1F697; '+stop.km+' | '+stop.day+'</span>' +
+      '</div>';
+    item.style.cursor = 'pointer';
+    (function(s, m) {
+      item.onclick = function() { map.setView([s.lat, s.lng], 11); m.openPopup(); };
+    })(stop, marker);
+    legGrid.appendChild(item);
+  }
+});
+
+map.fitBounds(routeCoords, { padding: [30, 30] });
+</script>
+</body>
 </html>
